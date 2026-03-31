@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PFCバランス計算</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      background: #f5f5f5; color: #333; min-height: 100vh; padding: 24px 16px;
+    }
+    .container { max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 8px; color: #1a1a1a; }
+    .subtitle { text-align: center; font-size: 0.85rem; color: #888; margin-bottom: 28px; }
+    .card {
+      background: #fff; border-radius: 16px; padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07); margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 0.95rem; font-weight: 600; color: #555; margin-bottom: 16px;
+      padding-bottom: 8px; border-bottom: 1px solid #eee;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; color: #444; margin-bottom: 6px; }
+    input[type="number"], select {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0;
+      border-radius: 10px; font-size: 1rem; color: #333; background: #fafafa;
+      transition: border-color 0.2s; appearance: none; -webkit-appearance: none;
+    }
+    input[type="number"]:focus, select:focus { outline: none; border-color: #4f8ef7; background: #fff; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .gender-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .gender-btn {
+      padding: 10px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      background: #fafafa; font-size: 0.95rem; cursor: pointer; text-align: center;
+      transition: all 0.2s; color: #555;
+    }
+    .gender-btn.active { border-color: #4f8ef7; background: #eef3ff; color: #2563eb; font-weight: 600; }
+
+    .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sel-btn {
+      padding: 14px 10px; border: 1.5px solid #e0e0e0; border-radius: 12px;
+      background: #fafafa; cursor: pointer; text-align: center;
+      transition: all 0.2s; color: #555; line-height: 1.4;
+    }
+    .sel-btn .btn-name { font-size: 0.95rem; font-weight: 700; display: block; margin-bottom: 3px; }
+    .sel-btn .btn-sub  { font-size: 0.72rem; color: #aaa; display: block; }
+    .sel-btn.active { border-color: #4f8ef7; background: #eef3ff; color: #2563eb; }
+    .sel-btn.active .btn-sub { color: #7eaaff; }
+
+    .tip-box {
+      margin-top: 12px; padding: 10px 14px;
+      background: #fffbea; border-left: 3px solid #f5c200;
+      border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #7a6000;
+    }
+    .fixed-info {
+      font-size: 0.84rem; color: #555; padding: 8px 12px;
+      background: #f7f7f7; border-radius: 8px; margin-bottom: 14px;
+    }
+    .slider-row { margin-bottom: 18px; }
+    .slider-row:last-child { margin-bottom: 0; }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .slider-label { font-size: 0.875rem; font-weight: 500; color: #444; }
+    .slider-val { font-size: 0.875rem; font-weight: 600; color: #2563eb; }
+    input[type="range"] { width: 100%; accent-color: #4f8ef7; cursor: pointer; }
+    .range-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: #bbb; margin-top: 2px; }
+
+    .calc-btn {
+      width: 100%; padding: 14px; background: #4f8ef7; color: #fff;
+      border: none; border-radius: 12px; font-size: 1.05rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .calc-btn:hover { background: #3b7de8; }
+    .calc-btn:active { transform: scale(0.98); }
+    .error-msg { color: #e05555; font-size: 0.85rem; margin-top: 10px; text-align: center; display: none; }
+
+    .result-card {
+      background: #fff; border-radius: 16px; padding: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07); display: none;
+    }
+    .result-card h2 {
+      font-size: 0.95rem; font-weight: 600; color: #555; margin-bottom: 20px;
+      padding-bottom: 8px; border-bottom: 1px solid #eee;
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .calorie-display { text-align: center; margin-bottom: 24px; }
+    .calorie-label { font-size: 0.85rem; color: #888; margin-bottom: 4px; }
+    .calorie-value { font-size: 2.8rem; font-weight: 700; color: #1a1a1a; line-height: 1; }
+    .calorie-unit  { font-size: 1rem; color: #888; font-weight: 400; }
+
+    .pfc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .pfc-item { border-radius: 12px; padding: 16px 10px; text-align: center; }
+    .pfc-item.protein { background: #fff0f0; }
+    .pfc-item.fat     { background: #fff8e6; }
+    .pfc-item.carbs   { background: #f0f7ff; }
+    .pfc-label { font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; }
+    .pfc-item.protein .pfc-label { color: #e05555; }
+    .pfc-item.fat     .pfc-label { color: #d4920a; }
+    .pfc-item.carbs   .pfc-label { color: #3a7bd5; }
+    .pfc-grams { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .pfc-item.protein .pfc-grams { color: #d94444; }
+    .pfc-item.fat     .pfc-grams { color: #c47f00; }
+    .pfc-item.carbs   .pfc-grams { color: #2563eb; }
+    .pfc-unit    { font-size: 0.75rem; color: #aaa; margin-top: 2px; }
+    .pfc-percent { font-size: 0.78rem; color: #bbb; margin-top: 4px; }
+    .pfc-sub     { font-size: 0.7rem;  color: #bbb; margin-top: 4px; line-height: 1.3; }
+
+    .bar-track {
+      height: 10px; background: #f0f0f0; border-radius: 99px;
+      overflow: hidden; display: flex; gap: 2px; margin-bottom: 6px;
+    }
+    .bar-p { background: #e05555; border-radius: 99px 0 0 99px; }
+    .bar-f { background: #d4920a; }
+    .bar-c { background: #3a7bd5; border-radius: 0 99px 99px 0; }
+    .bar-legend {
+      display: flex; gap: 12px; justify-content: center;
+      font-size: 0.75rem; color: #aaa; margin-bottom: 16px;
+    }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+    .note { font-size: 0.78rem; color: #bbb; text-align: center; }
+    .warn-box {
+      margin-top: 12px; padding: 10px 14px;
+      background: #fff3f3; border-left: 3px solid #e05555;
+      border-radius: 0 8px 8px 0; font-size: 0.82rem; color: #b03030; display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>PFCバランス計算</h1>
+  <p class="subtitle">目的・食事法別にPFCを自動設計します</p>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <h2>基本情報</h2>
+    <div class="field">
+      <label>性別</label>
+      <div class="gender-group">
+        <button class="gender-btn active" onclick="setGender('male',this)">男性</button>
+        <button class="gender-btn" onclick="setGender('female',this)">女性</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="age">年齢（歳）</label>
+        <input type="number" id="age" placeholder="25" min="10" max="100">
+      </div>
+      <div class="field">
+        <label for="height">身長（cm）</label>
+        <input type="number" id="height" placeholder="170" min="100" max="250">
+      </div>
+    </div>
+    <div class="field">
+      <label for="weight">体重（kg）</label>
+      <input type="number" id="weight" placeholder="65" min="30" max="300" step="0.1" oninput="refreshProteinDisplay()">
+    </div>
+  </div>
+
+  <!-- 活動量 -->
+  <div class="card">
+    <h2>活動量</h2>
+    <div class="field">
+      <select id="activity">
+        <option value="1.2">座りがち（デスクワーク・ほぼ運動なし）</option>
+        <option value="1.375">軽い運動（週1〜3日）</option>
+        <option value="1.55" selected>中程度の運動（週3〜5日）</option>
+        <option value="1.725">激しい運動（週6〜7日）</option>
+        <option value="1.9">非常に激しい運動（毎日2回・肉体労働）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 目的 -->
+  <div class="card">
+    <h2>目的</h2>
+    <div class="btn-group">
+      <button class="sel-btn" onclick="setGoal('diet',this)">
+        <span class="btn-name">脂肪減少</span><span class="btn-sub">ダイエット</span>
+      </button>
+      <button class="sel-btn" onclick="setGoal('muscle',this)">
+        <span class="btn-name">筋肥大</span><span class="btn-sub">バルクアップ</span>
+      </button>
+      <button class="sel-btn" onclick="setGoal('maintain',this)">
+        <span class="btn-name">体型維持</span><span class="btn-sub">リコンプ</span>
+      </button>
+      <button class="sel-btn" onclick="setGoal('health',this)">
+        <span class="btn-name">健康・美容</span><span class="btn-sub">ゆるケト・血糖安定</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 食事法 -->
+  <div class="card" id="dietCard" style="display:none">
+    <h2>食事法</h2>
+    <div class="btn-group" id="dietGroup"></div>
+    <div class="tip-box" id="dietTip" style="display:none"></div>
+  </div>
+
+  <!-- 詳細調整スライダー -->
+  <div class="card" id="sliderCard" style="display:none">
+    <h2>詳細調整</h2>
+
+    <div id="proteinFixed" class="fixed-info" style="display:none"></div>
+    <div class="slider-row" id="proteinRow" style="display:none">
+      <div class="slider-header">
+        <span class="slider-label">タンパク質</span>
+        <span class="slider-val" id="proteinDisplay">—</span>
+      </div>
+      <input type="range" id="proteinSlider" step="0.1" oninput="onSlider()">
+      <div class="range-labels">
+        <span id="proteinRangeMin">—</span><span id="proteinRangeMax">—</span>
+      </div>
+    </div>
+
+    <div id="calFixed" class="fixed-info" style="display:none"></div>
+    <div class="slider-row" id="calRow" style="display:none">
+      <div class="slider-header">
+        <span class="slider-label">カロリー補正</span>
+        <span class="slider-val" id="calDisplay">—</span>
+      </div>
+      <input type="range" id="calSlider" step="1" oninput="onSlider()">
+      <div class="range-labels">
+        <span id="calRangeMin">—</span><span id="calRangeMax">—</span>
+      </div>
+    </div>
+
+    <div class="slider-row" id="fatRow" style="display:none">
+      <div class="slider-header">
+        <span class="slider-label">脂質割合</span>
+        <span class="slider-val" id="fatDisplay">—</span>
+      </div>
+      <input type="range" id="fatSlider" step="1" oninput="onSlider()">
+      <div class="range-labels">
+        <span id="fatRangeMin">—</span><span id="fatRangeMax">—</span>
+      </div>
+    </div>
+
+    <div class="slider-row" id="carbRow" style="display:none">
+      <div class="slider-header">
+        <span class="slider-label">糖質量</span>
+        <span class="slider-val" id="carbDisplay">—</span>
+      </div>
+      <input type="range" id="carbSlider" step="1" oninput="onSlider()">
+      <div class="range-labels">
+        <span id="carbRangeMin">—</span><span id="carbRangeMax">—</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="calc-btn" id="calcBtn" onclick="calculate()" style="display:none">計算する</button>
+  <p class="error-msg" id="errorMsg">すべての項目を正しく入力してください。</p>
+
+  <!-- 結果 -->
+  <div class="result-card" id="result">
+    <h2>計算結果</h2>
+    <div class="calorie-display">
+      <div class="calorie-label">1日の目標摂取カロリー</div>
+      <div class="calorie-value" id="totalCalorie">—</div>
+      <div class="calorie-unit">kcal / 日</div>
+    </div>
+    <div class="pfc-grid">
+      <div class="pfc-item protein">
+        <div class="pfc-label">タンパク質</div>
+        <div class="pfc-grams" id="rProtein">—</div>
+        <div class="pfc-unit">g</div>
+        <div class="pfc-percent" id="rProteinPct"></div>
+        <div class="pfc-sub" id="rProteinSub"></div>
+      </div>
+      <div class="pfc-item fat">
+        <div class="pfc-label">脂質</div>
+        <div class="pfc-grams" id="rFat">—</div>
+        <div class="pfc-unit">g</div>
+        <div class="pfc-percent" id="rFatPct"></div>
+        <div class="pfc-sub" id="rFatSub"></div>
+      </div>
+      <div class="pfc-item carbs">
+        <div class="pfc-label">炭水化物</div>
+        <div class="pfc-grams" id="rCarbs">—</div>
+        <div class="pfc-unit">g</div>
+        <div class="pfc-percent" id="rCarbsPct"></div>
+        <div class="pfc-sub" id="rCarbsSub"></div>
+      </div>
+    </div>
+    <div class="bar-track">
+      <div class="bar-p" id="barP" style="width:0%"></div>
+      <div class="bar-f" id="barF" style="width:0%"></div>
+      <div class="bar-c" id="barC" style="width:0%"></div>
+    </div>
+    <div class="bar-legend">
+      <span><span class="legend-dot" style="background:#e05555"></span>P <span id="legP">0</span>%</span>
+      <span><span class="legend-dot" style="background:#d4920a"></span>F <span id="legF">0</span>%</span>
+      <span><span class="legend-dot" style="background:#3a7bd5"></span>C <span id="legC">0</span>%</span>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <p class="note" id="bmrNote"></p>
+  </div>
+</div>
+
+<script>
+  /* ── 設定マスタ ───────────────────────────────────────────
+     pMin/pMax : タンパク質倍率 (g/kg)
+     fMin/fMax : 脂質% (非ケトのみ)
+     fMode     : 'pct' = 脂質%スライダー / 'rem' = 脂質は残り
+     cMode     : 'rem' = 糖質は残り    / 'gram' = 糖質gスライダー(ケト)
+     cMin/cMax : 糖質g範囲 (ケトのみ)
+     calMin/calMax : カロリー% (100=維持, 85=−15%)
+  ──────────────────────────────────────────────────────── */
+  const CFG = {
+    'diet-balanced':  {pMin:1.5,pMax:2.0,fMode:'pct',fMin:20,fMax:25,cMode:'rem',calMin:80,calMax:90, tip:'王道・継続しやすい'},
+    'diet-lowfat':    {pMin:1.6,pMax:2.0,fMode:'pct',fMin:10,fMax:15,cMode:'rem',calMin:75,calMax:85, tip:'短期で落としやすい'},
+    'diet-lowcarb':   {pMin:1.2,pMax:1.6,fMode:'pct',fMin:50,fMax:60,cMode:'rem',calMin:80,calMax:90, tip:'ケトより緩くて続く'},
+    'diet-keto':      {pMin:1.2,pMax:1.5,fMode:'rem',          cMode:'gram',cMin:20,cMax:30,calMin:80,calMax:90, tip:'タンパク質過多でケトン生成が弱まる可能性'},
+
+    'muscle-balanced':{pMin:1.6,pMax:2.0,fMode:'pct',fMin:20,fMax:25,cMode:'rem',calMin:105,calMax:115,tip:'パフォーマンス重視'},
+    'muscle-lowfat':  {pMin:1.6,pMax:2.0,fMode:'pct',fMin:15,fMax:20,cMode:'rem',calMin:110,calMax:120,tip:'一番筋肥大と相性いい'},
+    'muscle-lowcarb': {pMin:1.6,pMax:2.0,fMode:'pct',fMin:40,fMax:50,cMode:'rem',calMin:105,calMax:110,tip:'中間型（やや難易度あり）'},
+    'muscle-keto':    {pMin:1.6,pMax:2.0,fMode:'rem',          cMode:'gram',cMin:30,cMax:50,calMin:105,calMax:115,tip:'絞り込み用'},
+
+    'maintain-balanced':{pMin:1.3,pMax:1.6,fMode:'pct',fMin:25,fMax:30,cMode:'rem',calMin:100,calMax:100,tip:''},
+    'maintain-lowfat':  {pMin:1.5,pMax:1.5,fMode:'pct',fMin:15,fMax:20,cMode:'rem',calMin:100,calMax:100,tip:''},
+    'maintain-lowcarb': {pMin:1.3,pMax:1.6,fMode:'pct',fMin:45,fMax:55,cMode:'rem',calMin:100,calMax:100,tip:''},
+    'maintain-keto':    {pMin:1.3,pMax:1.6,fMode:'rem',          cMode:'gram',cMin:20,cMax:40,calMin:95,calMax:100,tip:'ケトン出つつ無理なく継続'},
+
+    'health-balanced':  {pMin:1.2,pMax:1.5,fMode:'pct',fMin:25,fMax:30,cMode:'rem',calMin:95,calMax:100,tip:'ホルモン・バランス重視'},
+    'health-lowcarb':   {pMin:1.0,pMax:1.3,fMode:'pct',fMin:50,fMax:60,cMode:'rem',calMin:95,calMax:100,tip:'血糖安定・アンチエイジング寄り'},
+    'health-keto':      {pMin:1.0,pMax:1.3,fMode:'rem',          cMode:'gram',cMin:30,cMax:50,calMin:95,calMax:100,tip:'ストレス最小・継続重視'},
+  };
+
+  const DIET_OPTS = {
+    diet:    [{k:'balanced',n:'バランス',s:'王道型'},{k:'lowfat',n:'脂質制限',s:'高糖質'},{k:'lowcarb',n:'糖質制限',s:'中間型'},{k:'keto',n:'ケトジェニック',s:'超低糖質'}],
+    muscle:  [{k:'balanced',n:'バランス',s:'王道型'},{k:'lowfat',n:'脂質制限',s:'高糖質'},{k:'lowcarb',n:'糖質制限',s:'中間型'},{k:'keto',n:'ケトジェニック',s:'絞り込み用'}],
+    maintain:[{k:'balanced',n:'バランス',s:'王道型'},{k:'lowfat',n:'脂質制限',s:'高糖質'},{k:'lowcarb',n:'糖質制限',s:'中間型'},{k:'keto',n:'ケトジェニック',s:'超低糖質'}],
+    health:  [{k:'balanced',n:'バランス',s:'王道型'},                                      {k:'lowcarb',n:'糖質制限',s:'中間型'},{k:'keto',n:'ケトジェニック',s:'超低糖質'}],
+  };
+
+  let gender = 'male', goal = null, diet = null;
+
+  function el(id) { return document.getElementById(id); }
+  function show(id) { el(id).style.display = 'block'; }
+  function hide(id) { el(id).style.display = 'none'; }
+
+  function fmtCal(v) {
+    const d = v - 100;
+    return d === 0 ? '±0%' : (d > 0 ? `+${d}%` : `${d}%`);
+  }
+
+  function setGender(g, btn) {
+    gender = g;
+    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function setGoal(g, btn) {
+    goal = g; diet = null;
+    document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildDietButtons();
+    hide('sliderCard'); hide('calcBtn'); hide('result');
+  }
+
+  function buildDietButtons() {
+    const group = el('dietGroup');
+    group.innerHTML = '';
+    DIET_OPTS[goal].forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'sel-btn';
+      btn.innerHTML = `<span class="btn-name">${opt.n}</span><span class="btn-sub">${opt.s}</span>`;
+      btn.onclick = () => selectDiet(opt.k, btn);
+      group.appendChild(btn);
+    });
+    show('dietCard');
+    hide('dietTip');
+  }
+
+  function selectDiet(d, btn) {
+    diet = d;
+    document.querySelectorAll('#dietGroup .sel-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildSliders();
+    hide('result');
+  }
+
+  function buildSliders() {
+    const cfg = CFG[goal + '-' + diet];
+    if (!cfg) return;
+
+    // tip
+    if (cfg.tip) { el('dietTip').textContent = '👉 ' + cfg.tip; show('dietTip'); }
+    else { hide('dietTip'); }
+
+    // protein
+    if (cfg.pMin === cfg.pMax) {
+      el('proteinFixed').textContent = `タンパク質: 体重 × ${cfg.pMin}g（固定）`;
+      show('proteinFixed'); hide('proteinRow');
+    } else {
+      hide('proteinFixed'); show('proteinRow');
+      const s = el('proteinSlider');
+      s.min = cfg.pMin; s.max = cfg.pMax; s.step = 0.1;
+      s.value = ((cfg.pMin + cfg.pMax) / 2).toFixed(1);
+      el('proteinRangeMin').textContent = `×${cfg.pMin}`;
+      el('proteinRangeMax').textContent = `×${cfg.pMax}`;
+    }
+
+    // calorie
+    if (cfg.calMin === cfg.calMax) {
+      el('calFixed').textContent = `カロリー: ${cfg.calMin === 100 ? '維持（TDEE）' : fmtCal(cfg.calMin)}`;
+      show('calFixed'); hide('calRow');
+    } else {
+      hide('calFixed'); show('calRow');
+      const s = el('calSlider');
+      s.min = cfg.calMin; s.max = cfg.calMax; s.step = 1;
+      s.value = Math.round((cfg.calMin + cfg.calMax) / 2);
+      el('calRangeMin').textContent = fmtCal(cfg.calMin);
+      el('calRangeMax').textContent = fmtCal(cfg.calMax);
+    }
+
+    // fat or carb
+    if (cfg.cMode === 'gram') {
+      hide('fatRow'); show('carbRow');
+      const s = el('carbSlider');
+      s.min = cfg.cMin; s.max = cfg.cMax; s.step = 1;
+      s.value = Math.round((cfg.cMin + cfg.cMax) / 2);
+      el('carbRangeMin').textContent = `${cfg.cMin}g`;
+      el('carbRangeMax').textContent = `${cfg.cMax}g`;
+    } else {
+      hide('carbRow'); show('fatRow');
+      const s = el('fatSlider');
+      s.min = cfg.fMin; s.max = cfg.fMax; s.step = 1;
+      s.value = Math.round((cfg.fMin + cfg.fMax) / 2);
+      el('fatRangeMin').textContent = `${cfg.fMin}%`;
+      el('fatRangeMax').textContent = `${cfg.fMax}%`;
+    }
+
+    show('sliderCard'); show('calcBtn');
+    onSlider();
+  }
+
+  function refreshProteinDisplay() { if (goal && diet) onSlider(); }
+
+  function onSlider() {
+    const cfg = CFG[goal + '-' + diet];
+    if (!cfg) return;
+    const weight = parseFloat(el('weight').value) || 0;
+
+    if (cfg.pMin !== cfg.pMax) {
+      const rate = parseFloat(el('proteinSlider').value);
+      el('proteinDisplay').textContent = weight > 0
+        ? `×${rate.toFixed(1)} → ${Math.round(weight * rate)}g`
+        : `×${rate.toFixed(1)}`;
+    }
+    if (cfg.calMin !== cfg.calMax) {
+      el('calDisplay').textContent = fmtCal(parseInt(el('calSlider').value));
+    }
+    if (cfg.cMode === 'gram') {
+      el('carbDisplay').textContent = el('carbSlider').value + 'g';
+    } else {
+      el('fatDisplay').textContent = el('fatSlider').value + '%';
+    }
+  }
+
+  function calculate() {
+    const age      = parseFloat(el('age').value);
+    const height   = parseFloat(el('height').value);
+    const weight   = parseFloat(el('weight').value);
+    const activity = parseFloat(el('activity').value);
+
+    if (!age || !height || !weight || isNaN(activity) || !goal || !diet) {
+      show('errorMsg'); return;
+    }
+    hide('errorMsg');
+
+    const cfg = CFG[goal + '-' + diet];
+    const bmr = gender === 'male'
+      ? 10*weight + 6.25*height - 5*age + 5
+      : 10*weight + 6.25*height - 5*age - 161;
+    const tdee = bmr * activity;
+
+    const calPct = cfg.calMin === cfg.calMax ? cfg.calMin : parseInt(el('calSlider').value);
+    const targetCal = Math.round(tdee * calPct / 100);
+
+    const pRate = cfg.pMin === cfg.pMax ? cfg.pMin : parseFloat(el('proteinSlider').value);
+    const proteinG = Math.round(weight * pRate);
+    const proteinKcal = proteinG * 4;
+
+    let fatG, carbsG, fatSub, carbsSub;
+    if (cfg.cMode === 'gram') {
+      carbsG = parseInt(el('carbSlider').value);
+      fatG   = Math.round((targetCal - proteinKcal - carbsG * 4) / 9);
+      fatSub = '残り全て'; carbsSub = '固定';
+    } else {
+      const fPct = parseInt(el('fatSlider').value);
+      fatG   = Math.round(targetCal * fPct / 100 / 9);
+      carbsG = Math.round((targetCal - proteinKcal - fatG * 9) / 4);
+      fatSub = `${fPct}%指定`; carbsSub = '残り';
+    }
+
+    const tP = proteinG * 4, tF = fatG * 9, tC = carbsG * 4;
+    const tot = tP + tF + tC;
+    const pPct = Math.round(tP / tot * 100);
+    const fPct2 = Math.round(tF / tot * 100);
+    const cPct = Math.round(tC / tot * 100);
+
+    el('totalCalorie').textContent = targetCal.toLocaleString();
+    el('rProtein').textContent  = proteinG;
+    el('rFat').textContent      = fatG > 0 ? fatG : '—';
+    el('rCarbs').textContent    = carbsG > 0 ? carbsG : '—';
+    el('rProteinSub').textContent = `体重×${pRate.toFixed(1)}g`;
+    el('rFatSub').textContent     = fatSub;
+    el('rCarbsSub').textContent   = carbsSub;
+    el('rProteinPct').textContent = `${pPct}%`;
+    el('rFatPct').textContent     = fatG > 0 ? `${fPct2}%` : '—';
+    el('rCarbsPct').textContent   = carbsG > 0 ? `${cPct}%` : '—';
+    el('barP').style.width = pPct + '%';
+    el('barF').style.width = (fatG > 0 ? fPct2 : 0) + '%';
+    el('barC').style.width = (carbsG > 0 ? cPct : 0) + '%';
+    el('legP').textContent = pPct;
+    el('legF').textContent = fatG > 0 ? fPct2 : 0;
+    el('legC').textContent = carbsG > 0 ? cPct : 0;
+
+    const warn = el('warnBox');
+    if (fatG <= 0 || carbsG <= 0) {
+      warn.textContent = '⚠️ 計算値がマイナスになりました。スライダーを調整してください。';
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+
+    el('bmrNote').textContent =
+      `基礎代謝: ${Math.round(bmr)} kcal　TDEE: ${Math.round(tdee)} kcal　補正: ${fmtCal(calPct)}`;
+
+    show('result');
+    el('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+</body>
+</html>
